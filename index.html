@@ -5,25 +5,378 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
         #map { height: 100vh; width: 100%; }
-        body { margin: 0; padding: 0; }
-        .info {
-            padding: 6px 8px;
-            font: 14px/16px Arial, Helvetica, sans-serif;
-            background: white;
-            background: rgba(255,255,255,0.8);
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            border-radius: 5px;
+
+        /* --- Floating Title --- */
+        .map-title {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(15, 15, 20, 0.72);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 10px 22px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.04) inset;
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+            max-width: calc(100vw - 32px);
         }
-        .info h4 {
-            margin: 0 0 5px;
-            color: #777;
+        .map-title.light-mode {
+            background: rgba(255, 255, 255, 0.78);
+            border-color: rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.03) inset;
+        }
+        .map-title h1 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: rgba(255, 255, 255, 0.92);
+            white-space: nowrap;
+            transition: color 0.4s ease;
+        }
+        .map-title.light-mode h1 {
+            color: rgba(15, 15, 20, 0.88);
+        }
+        .title-separator {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            flex-shrink: 0;
+            transition: background 0.4s ease;
+        }
+        .map-title.light-mode .title-separator {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .map-title .author-link {
+            font-size: 12px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.45);
+            text-decoration: none;
+            white-space: nowrap;
+            transition: color 0.2s ease;
+            letter-spacing: 0.01em;
+        }
+        .map-title .author-link:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .map-title.light-mode .author-link {
+            color: rgba(15, 15, 20, 0.4);
+        }
+        .map-title.light-mode .author-link:hover {
+            color: rgba(15, 15, 20, 0.75);
+        }
+
+        /* --- Theme Toggle --- */
+        .theme-toggle {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            background: rgba(15, 15, 20, 0.72);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.04) inset;
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .theme-toggle.light-mode {
+            background: rgba(255, 255, 255, 0.78);
+            border-color: rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.03) inset;
+        }
+        .theme-toggle:hover { transform: scale(1.03); }
+        .theme-toggle:active { transform: scale(0.97); }
+        .theme-toggle-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.65);
+            letter-spacing: 0.02em;
+            transition: color 0.4s ease;
+        }
+        .theme-toggle.light-mode .theme-toggle-label {
+            color: rgba(15, 15, 20, 0.55);
+        }
+        .toggle-track {
+            width: 36px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+        .theme-toggle.light-mode .toggle-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .toggle-thumb {
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .toggle-thumb svg {
+            width: 10px;
+            height: 10px;
+            transition: opacity 0.2s ease;
+        }
+        .toggle-thumb .icon-sun { display: none; }
+        .toggle-thumb .icon-moon { display: block; }
+        .theme-toggle.light-mode .toggle-thumb {
+            transform: translateX(16px);
+            background: #1a1a2e;
+        }
+        .theme-toggle.light-mode .toggle-thumb .icon-sun { display: block; }
+        .theme-toggle.light-mode .toggle-thumb .icon-moon { display: none; }
+
+        /* --- Layer Control Restyle --- */
+        .leaflet-control-layers {
+            background: rgba(15, 15, 20, 0.72) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.04) inset !important;
+            color: rgba(255, 255, 255, 0.8) !important;
+            padding: 8px 12px !important;
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, color 0.4s ease;
+        }
+        .leaflet-control-layers.light-mode {
+            background: rgba(255, 255, 255, 0.78) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.03) inset !important;
+            color: rgba(15, 15, 20, 0.75) !important;
+        }
+        .leaflet-control-layers label {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 13px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.7);
+            transition: color 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 0;
+            cursor: pointer;
+        }
+        .leaflet-control-layers.light-mode label {
+            color: rgba(15, 15, 20, 0.65);
+        }
+        .leaflet-control-layers-separator {
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            transition: border-color 0.4s ease;
+        }
+        .leaflet-control-layers.light-mode .leaflet-control-layers-separator {
+            border-color: rgba(0, 0, 0, 0.08) !important;
+        }
+
+        /* --- Popup Restyle --- */
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 15, 20, 0.82) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+            color: rgba(255, 255, 255, 0.88) !important;
+            transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+        }
+        .leaflet-popup-content-wrapper.light-mode {
+            background: rgba(255, 255, 255, 0.88) !important;
+            border-color: rgba(0, 0, 0, 0.06);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+            color: rgba(15, 15, 20, 0.85) !important;
+        }
+        .leaflet-popup-content {
+            margin: 10px 14px !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        .leaflet-popup-content h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: inherit;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 15, 20, 0.82) !important;
+            border: none !important;
+            box-shadow: none !important;
+            transition: background 0.4s ease;
+        }
+        .leaflet-popup-tip.light-mode {
+            background: rgba(255, 255, 255, 0.88) !important;
+        }
+        .leaflet-popup-close-button {
+            color: rgba(255, 255, 255, 0.5) !important;
+            transition: color 0.4s ease;
+        }
+        .leaflet-popup-close-button.light-mode,
+        .light-popup .leaflet-popup-close-button {
+            color: rgba(15, 15, 20, 0.4) !important;
+        }
+
+        /* --- Attribution Restyle --- */
+        .leaflet-control-attribution {
+            background: rgba(15, 15, 20, 0.55) !important;
+            color: rgba(255, 255, 255, 0.4) !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 10px !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 6px 0 0 0 !important;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+        .leaflet-control-attribution.light-mode {
+            background: rgba(255, 255, 255, 0.65) !important;
+            color: rgba(15, 15, 20, 0.4) !important;
+        }
+        .leaflet-control-attribution a {
+            color: rgba(255, 255, 255, 0.55) !important;
+            transition: color 0.4s ease;
+        }
+        .leaflet-control-attribution.light-mode a {
+            color: rgba(15, 15, 20, 0.5) !important;
+        }
+
+        /* --- Zoom Control Restyle --- */
+        .leaflet-control-zoom a {
+            background: rgba(15, 15, 20, 0.72) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: rgba(255, 255, 255, 0.8) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            transition: background 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+            font-family: 'Inter', sans-serif;
+            width: 34px !important;
+            height: 34px !important;
+            line-height: 34px !important;
+            font-size: 16px !important;
+        }
+        .leaflet-control-zoom a:hover {
+            background: rgba(15, 15, 20, 0.88) !important;
+        }
+        .leaflet-control-zoom a.light-mode {
+            background: rgba(255, 255, 255, 0.78) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            color: rgba(15, 15, 20, 0.7) !important;
+        }
+        .leaflet-control-zoom a.light-mode:hover {
+            background: rgba(255, 255, 255, 0.92) !important;
+        }
+        .leaflet-control-zoom {
+            border: none !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3) !important;
+            transition: box-shadow 0.4s ease;
+        }
+        .leaflet-control-zoom.light-mode {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        /* --- Mobile Responsive --- */
+        @media (max-width: 600px) {
+            .map-title {
+                top: 10px;
+                padding: 8px 14px;
+                gap: 10px;
+                border-radius: 11px;
+            }
+            .map-title h1 {
+                font-size: 14px;
+            }
+            .map-title .author-link {
+                font-size: 11px;
+            }
+            .title-separator {
+                height: 16px;
+            }
+            .theme-toggle {
+                top: auto;
+                bottom: 28px;
+                right: 10px;
+                padding: 7px 10px;
+                gap: 8px;
+                border-radius: 10px;
+            }
+            .theme-toggle-label {
+                font-size: 11px;
+            }
+            .toggle-track {
+                width: 32px;
+                height: 18px;
+            }
+            .toggle-thumb {
+                width: 14px;
+                height: 14px;
+            }
+            .theme-toggle.light-mode .toggle-thumb {
+                transform: translateX(14px);
+            }
+            .toggle-thumb svg {
+                width: 8px;
+                height: 8px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Floating Title -->
+    <div class="map-title" id="mapTitle">
+        <h1>EPA Ecoregions</h1>
+        <div class="title-separator"></div>
+        <a href="https://noahweidig.com" target="_blank" rel="noopener" class="author-link">noahweidig.com</a>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle map theme">
+        <span class="theme-toggle-label">Map</span>
+        <div class="toggle-track">
+            <div class="toggle-thumb">
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" stroke="none"/>
+                </svg>
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
     <div id="map"></div>
     <script src="l1.js"></script>
     <script src="l2.js"></script>
@@ -32,16 +385,89 @@
     <script>
         var map = L.map('map').setView([39.8283, -98.5795], 4);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        // Tile layers
+        var darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://openstreetmap.org">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        });
+        var lightTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://openstreetmap.org">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        });
+
+        // Default to dark
+        var isDark = true;
+        darkTile.addTo(map);
+
+        // Theme toggle logic
+        var themeToggle = document.getElementById('themeToggle');
+        var mapTitle = document.getElementById('mapTitle');
+
+        function setTheme(dark) {
+            isDark = dark;
+            if (dark) {
+                map.removeLayer(lightTile);
+                darkTile.addTo(map);
+            } else {
+                map.removeLayer(darkTile);
+                lightTile.addTo(map);
+            }
+
+            // Toggle classes on UI elements
+            var els = [mapTitle, themeToggle];
+            var layerCtrl = document.querySelector('.leaflet-control-layers');
+            var attrib = document.querySelector('.leaflet-control-attribution');
+            var zoomCtrl = document.querySelector('.leaflet-control-zoom');
+            var zoomBtns = document.querySelectorAll('.leaflet-control-zoom a');
+            if (layerCtrl) els.push(layerCtrl);
+            if (attrib) els.push(attrib);
+            if (zoomCtrl) els.push(zoomCtrl);
+
+            els.forEach(function(el) {
+                if (dark) el.classList.remove('light-mode');
+                else el.classList.add('light-mode');
+            });
+            zoomBtns.forEach(function(btn) {
+                if (dark) btn.classList.remove('light-mode');
+                else btn.classList.add('light-mode');
+            });
+
+            // Update existing popups
+            document.querySelectorAll('.leaflet-popup-content-wrapper').forEach(function(el) {
+                if (dark) el.classList.remove('light-mode');
+                else el.classList.add('light-mode');
+            });
+            document.querySelectorAll('.leaflet-popup-tip').forEach(function(el) {
+                if (dark) el.classList.remove('light-mode');
+                else el.classList.add('light-mode');
+            });
+        }
+
+        themeToggle.addEventListener('click', function() { setTheme(!isDark); });
+        themeToggle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTheme(!isDark); }
+        });
+
+        // Apply theme to popups when they open
+        map.on('popupopen', function() {
+            if (!isDark) {
+                document.querySelectorAll('.leaflet-popup-content-wrapper').forEach(function(el) {
+                    el.classList.add('light-mode');
+                });
+                document.querySelectorAll('.leaflet-popup-tip').forEach(function(el) {
+                    el.classList.add('light-mode');
+                });
+            }
+        });
 
         function style(feature) {
             return {
                 fillColor: feature.properties.color,
                 weight: 1,
                 opacity: 1,
-                color: 'white',
+                color: 'rgba(255,255,255,0.4)',
                 dashArray: '3',
                 fillOpacity: 0.7
             };
@@ -49,9 +475,7 @@
 
         function onEachFeature(feature, layer) {
             if (feature.properties && feature.properties.name) {
-                var popupContent = "<h4>" + feature.properties.name + "</h4>";
-                // Optional: Add other properties if available
-                layer.bindPopup(popupContent);
+                layer.bindPopup('<h4>' + feature.properties.name + '</h4>');
             }
         }
 
