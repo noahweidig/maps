@@ -83,9 +83,9 @@
         /* --- Theme Toggle --- */
         .theme-toggle {
             position: absolute;
-            bottom: 28px;
+            top: 16px;
             right: 16px;
-            z-index: 1200;
+            z-index: 1000;
             background: rgba(15, 15, 20, 0.72);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
@@ -322,6 +322,7 @@
                 height: 16px;
             }
             .theme-toggle {
+                top: auto;
                 bottom: 28px;
                 right: 10px;
                 padding: 7px 10px;
@@ -377,9 +378,12 @@
     </div>
 
     <div id="map"></div>
+    <script src="l1.js"></script>
+    <script src="l2.js"></script>
+    <script src="l3.js"></script>
+    <script src="l4.js"></script>
     <script>
-        var map = L.map('map', { preferCanvas: true }).setView([39.8283, -98.5795], 4);
-        var canvasRenderer = L.canvas();
+        var map = L.map('map').setView([39.8283, -98.5795], 4);
 
         // Tile layers
         var darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -475,66 +479,22 @@
             }
         }
 
-        var levelConfig = {
-            'Level I': { script: 'l1.js', dataVar: 'l1_data' },
-            'Level II': { script: 'l2.js', dataVar: 'l2_data' },
-            'Level III': { script: 'l3.js', dataVar: 'l3_data' },
-            'Level IV': { script: 'l4.js', dataVar: 'l4_data' }
+        var l1 = L.geoJSON(l1_data, {style: style, onEachFeature: onEachFeature});
+        var l2 = L.geoJSON(l2_data, {style: style, onEachFeature: onEachFeature});
+        var l3 = L.geoJSON(l3_data, {style: style, onEachFeature: onEachFeature});
+        var l4 = L.geoJSON(l4_data, {style: style, onEachFeature: onEachFeature});
+
+        var baseMaps = {
+            "Level I": l1,
+            "Level II": l2,
+            "Level III": l3,
+            "Level IV": l4
         };
-        var levelGroups = {
-            'Level I': L.layerGroup(),
-            'Level II': L.layerGroup(),
-            'Level III': L.layerGroup(),
-            'Level IV': L.layerGroup()
-        };
-        var loadedScripts = {};
-        var loadedLevels = {};
 
-        function loadScript(src) {
-            if (loadedScripts[src]) return loadedScripts[src];
-
-            loadedScripts[src] = new Promise(function(resolve, reject) {
-                var script = document.createElement('script');
-                script.src = src;
-                script.async = true;
-                script.onload = resolve;
-                script.onerror = function() { reject(new Error('Failed to load ' + src)); };
-                document.head.appendChild(script);
-            });
-
-            return loadedScripts[src];
-        }
-
-        function ensureLevelLoaded(levelName) {
-            if (loadedLevels[levelName]) return loadedLevels[levelName];
-
-            var cfg = levelConfig[levelName];
-            loadedLevels[levelName] = loadScript(cfg.script).then(function() {
-                var data = window[cfg.dataVar];
-                var geoLayer = L.geoJSON(data, {
-                    style: style,
-                    onEachFeature: onEachFeature,
-                    renderer: canvasRenderer
-                });
-                levelGroups[levelName].addLayer(geoLayer);
-            });
-
-            return loadedLevels[levelName];
-        }
-
-        L.control.layers(levelGroups, {}, {collapsed: false}).addTo(map);
-
-        map.on('baselayerchange', function(e) {
-            Object.keys(levelGroups).forEach(function(levelName) {
-                if (levelGroups[levelName] === e.layer) {
-                    ensureLevelLoaded(levelName);
-                }
-            });
-        });
+        L.control.layers(baseMaps, {}, {collapsed: false}).addTo(map);
 
         // Show Level I by default
-        levelGroups['Level I'].addTo(map);
-        ensureLevelLoaded('Level I');
+        l1.addTo(map);
     </script>
 </body>
 </html>
