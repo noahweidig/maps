@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ecoregions Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { margin: 0; padding: 0; }
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        .info h4 {
+            margin: 0 0 5px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="l1.js"></script>
+    <script src="l2.js"></script>
+    <script src="l3.js"></script>
+    <script src="l4.js"></script>
+    <script>
+        var map = L.map('map').setView([39.8283, -98.5795], 4);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        function style(feature) {
+            return {
+                fillColor: feature.properties.color,
+                weight: 1,
+                opacity: 1,
+                color: 'white',
+                dashArray: '3',
+                fillOpacity: 0.7
+            };
+        }
+
+        function onEachFeature(feature, layer) {
+            if (feature.properties && feature.properties.name) {
+                var popupContent = "<h4>" + feature.properties.name + "</h4>";
+                // Optional: Add other properties if available
+                layer.bindPopup(popupContent);
+            }
+        }
+
+        var l1 = L.geoJSON(l1_data, {style: style, onEachFeature: onEachFeature});
+        var l2 = L.geoJSON(l2_data, {style: style, onEachFeature: onEachFeature});
+        var l3 = L.geoJSON(l3_data, {style: style, onEachFeature: onEachFeature});
+        var l4 = L.geoJSON(l4_data, {style: style, onEachFeature: onEachFeature});
+
+        var baseMaps = {
+            "Level I": l1,
+            "Level II": l2,
+            "Level III": l3,
+            "Level IV": l4
+        };
+
+        L.control.layers(baseMaps, {}, {collapsed: false}).addTo(map);
+
+        // Show Level I by default
+        l1.addTo(map);
+    </script>
+</body>
+</html>
